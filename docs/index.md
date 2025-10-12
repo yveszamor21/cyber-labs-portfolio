@@ -1,16 +1,9 @@
-# Home
+# Cyber Labs Portfolio
 
-[Home](index.md) | [About](about.md) | [Contact](contact.md)
+Hands-on labs in DNS security, network forensics, and SIEM.
 
----
+## Featured
+- **DNS Security (BIND9)** – cache poisoning tests, QNAME minimization, DNSSEC validation → [Read the lab](./labs/dns-bind9.md)
 
-## Welcome to Cyber Labs Portfolio
-
-This is the home page of the Cyber Labs Portfolio. Here you'll find information about cybersecurity labs and projects.
-
-### What You'll Find Here
-
-- Comprehensive cybersecurity lab documentation
-- Hands-on security analysis projects
-- Network security implementations
-- Security best practices and findings
+## About this portfolio
+Built to showcase reproducible, evidence-based security labs. Updated October 12, 2025.
