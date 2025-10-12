@@ -1,0 +1,14 @@
+options {
+    directory "/var/cache/bind";
+    recursion yes;
+    allow-recursion { any; };
+
+    // QNAME Minimization and DNSSEC
+    qname-minimization yes;
+    dnssec-validation auto;
+
+    // Logging (stdout/stderr in this container)
+    querylog yes;
+
+    listen-on port 53 { any; };
+};

@@ -153,3 +153,4 @@ labs-src/pihole/*.log
 
 # GitHub Codespaces
 .devcontainer/
+.DS_Store

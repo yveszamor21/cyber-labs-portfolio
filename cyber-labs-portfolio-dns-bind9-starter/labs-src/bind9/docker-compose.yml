@@ -1,0 +1,11 @@
+services:
+  bind9:
+    container_name: bind9
+    image: internetsystemsconsortium/bind9:9.18
+    volumes:
+      - ./named.conf.options:/etc/bind/named.conf.options:ro
+      - ./zones:/var/lib/bind:ro
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    restart: unless-stopped

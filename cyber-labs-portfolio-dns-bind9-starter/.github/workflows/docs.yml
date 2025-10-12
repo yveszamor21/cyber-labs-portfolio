@@ -1,0 +1,16 @@
+name: Docs
+on:
+  push:
+    branches: [ main ]
+    paths: [ "docs/**", ".github/workflows/docs.yml" ]
+  pull_request:
+    paths: [ "docs/**" ]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: "docs/**/*.md"
+  # Note: If you enable GitHub Pages, add a deploy job that uses actions/deploy-pages.
