@@ -1,8 +1,23 @@
 # Cyber Labs Portfolio
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Build Status](https://img.shields.io/badge/build-passing-success.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Build Status](https://img.shields.io/badge/build-passing-success.svg)
+
+## 🎯 Review Me Fast
+
+**Who I Am:** Cybersecurity professional with hands-on expertise in DNS security, network traffic analysis, and security monitoring infrastructure.
+
+**Target Roles:** SOC Analyst | Security Engineer | Network Security Analyst
+
+**Top 3 Labs:**
+1. [DNS Security Analysis (BIND9)](https://yveszamor21.github.io/cyber-labs-portfolio/labs/dns-bind9.html) - DNS server hardening and security monitoring
+2. [Network Traffic Analysis](https://yveszamor21.github.io/cyber-labs-portfolio/) - Wireshark deep packet inspection and threat detection
+3. [Security Monitoring with Pi-hole](https://yveszamor21.github.io/cyber-labs-portfolio/) - DNS-based threat blocking and analytics
+
+**Run Locally:** Clone repo → `cd cyber-labs-portfolio` → Open `docs/index.html` in browser
+
+**Live Site:** [https://yveszamor21.github.io/cyber-labs-portfolio/](https://yveszamor21.github.io/cyber-labs-portfolio/)
+
+---
 
 ## Overview
 
@@ -35,76 +50,56 @@ cyber-labs-portfolio/
 
 - **DNS Security Analysis** - BIND9, DNSmasq, and Pi-hole configurations
 - **Network Traffic Analysis** - Wireshark and tcpdump investigations
-- **Security Monitoring** - SIEM setup and log analysis
-- **Vulnerability Assessment** - Penetration testing methodologies
+- **Security Monitoring** - Log analysis and threat detection
+- **Vulnerability Assessment** - Network scanning and security auditing
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yveszamor21/cyber-labs-portfolio.git
-   cd cyber-labs-portfolio
-   ```
+### Prerequisites
 
-2. Set up development environment:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configurations
-   ```
+- Git
+- Web browser for viewing documentation
+- Linux environment (recommended for running lab configurations)
 
-3. View documentation locally:
-   ```bash
-   # GitHub Pages will automatically build and serve the docs/
-   # Or run locally with Jekyll
-   bundle exec jekyll serve
-   ```
+### Installation
+
+```bash
+git clone https://github.com/yveszamor21/cyber-labs-portfolio.git
+cd cyber-labs-portfolio
+```
+
+### Viewing Documentation
+
+Open `docs/index.html` in your web browser or visit the live site at [https://yveszamor21.github.io/cyber-labs-portfolio/](https://yveszamor21.github.io/cyber-labs-portfolio/)
 
 ## 📚 Documentation
 
-Detailed documentation is available in the [docs/](docs/) directory and published via GitHub Pages. Each lab includes:
+Detailed lab reports and documentation are available in the `/docs` directory. Each lab includes:
 
-- **Objectives** - Learning goals and outcomes
-- **Methodology** - Step-by-step procedures
-- **Results** - Findings and analysis
-- **Conclusions** - Key takeaways and lessons learned
+- Objective and scope
+- Architecture diagrams
+- Step-by-step configuration
+- Command references
+- Evidence and findings
+- Security recommendations
+- Lessons learned
 
-## 🛠️ Tools & Technologies
+## 🛠️ Technologies Used
 
-- **DNS Servers**: BIND9, DNSmasq, Pi-hole
-- **Network Analysis**: Wireshark, tcpdump, nmap
-- **Security Tools**: Nessus, OpenVAS, Metasploit
-- **Documentation**: Jekyll, Markdown, GitHub Pages
-- **Version Control**: Git, GitHub
+- **DNS Servers:** BIND9, DNSmasq, Pi-hole
+- **Network Analysis:** Wireshark, tcpdump, tshark
+- **Security Tools:** Nmap, OpenVAS, Nikto
+- **Documentation:** Markdown, GitHub Pages
+- **Version Control:** Git, GitHub
 
-## 📋 Requirements
+## 📝 License
 
-- Git 2.25+
-- Docker (for containerized labs)
-- Ruby 2.7+ (for Jekyll documentation)
-- Python 3.8+ (for custom scripts)
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🤝 Contributing
+## 📧 Contact
 
-Contributions are welcome! Please read our [Contributing Guidelines](.github/CONTRIBUTING.md) and submit pull requests for:
+For questions or collaboration opportunities, please reach out through the [contact page](https://yveszamor21.github.io/cyber-labs-portfolio/contact.html).
 
-- New lab exercises
-- Documentation improvements
-- Bug fixes and enhancements
+## 🌐 Live Documentation
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- [Live Documentation](https://yveszamor21.github.io/cyber-labs-portfolio/)
-- [Project Issues](https://github.com/yveszamor21/cyber-labs-portfolio/issues)
-- [Wiki](https://github.com/yveszamor21/cyber-labs-portfolio/wiki)
-
-## 📞 Contact
-
-For questions or collaboration opportunities, please visit the [Contact](docs/contact.md) page.
-
----
-
-**⭐ If you find this repository helpful, please consider giving it a star!**
+[View Portfolio Site](https://yveszamor21.github.io/cyber-labs-portfolio/)
