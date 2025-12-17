@@ -222,9 +222,12 @@ async def login_for_access_token(
         record_audit_event(db, user=None, request=request, action="failed_login", details=form_data.username)
         try:
             db.commit()
-        except SQLAlchemyError:
+        except SQLAlchemyError as exc:
             db.rollback()
-            raise
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to record failed login audit",
+            ) from exc
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
