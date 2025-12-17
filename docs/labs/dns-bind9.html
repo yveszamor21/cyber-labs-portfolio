@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DNS Security Lab — BIND9 (Docker)</title>
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <div class="brand">
+        <span class="badge">Security Labs</span>
+        Cyber Labs Portfolio
+      </div>
+      <div class="nav-links">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../contact.html">Contact</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="section-title" style="margin-top:12px;">
+      <strong>DNS Security Lab — BIND9 (Docker)</strong>
+      <span class="line"></span>
+    </div>
+
+    <section class="panel">
+      <p><strong>Date tested:</strong> October 12, 2025</p>
+      <p><strong>Target roles:</strong> SOC Analyst / Jr. Security Engineer</p>
+      <p><strong>Tools:</strong> BIND 9.18 (docker), <code>dig</code>, <code>drill</code>, <code>tcpdump</code>, Wireshark</p>
+    </section>
+
+    <div class="section-title">
+      <strong>Objectives</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <ol>
+        <li>Stand up a local recursive resolver (BIND9) in Docker.</li>
+        <li>Enable <strong>QNAME minimization</strong> and <strong>DNSSEC validation</strong>.</li>
+        <li>Generate traffic and logs; confirm defenses via <strong>evidence</strong>.</li>
+        <li>Explore cache-poisoning risk surface and show mitigations.</li>
+      </ol>
+    </section>
+
+    <div class="section-title">
+      <strong>Architecture</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <img src="../assets/diagrams/homelab-dns-arch.drawio.svg" alt="Homelab DNS Diagram" style="width:100%;max-width:820px;border:1px solid var(--border);border-radius:12px;" />
+      <ul>
+        <li>Client host runs <code>dig</code>/<code>drill</code> and sends queries to resolver.</li>
+        <li>Resolver: containerized BIND9, with query logging and DNSSEC on.</li>
+        <li>Upstream: public resolvers / authoritative servers on the Internet.</li>
+      </ul>
+    </section>
+
+    <div class="section-title">
+      <strong>Reproducible setup</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <p>Requires: Docker Desktop or Docker Engine.</p>
+      <div class="code-block"><code>git clone https://github.com/yveszamor21/cyber-labs-portfolio.git
+cd cyber-labs-portfolio/labs-src/bind9
+docker compose up -d</code></div>
+      <ul>
+        <li>The resolver listens on <code>127.0.0.1:53</code> (TCP/UDP) and <code>0.0.0.0:53</code> (mapped from the container).</li>
+        <li>To make your host use it temporarily:
+          <ul>
+            <li>Linux/macOS: <code>sudo bash -c 'echo nameserver 127.0.0.1 &gt; /etc/resolv.conf'</code> (remember to restore later), or use <code>dig @127.0.0.1 ...</code> per-command.</li>
+            <li>Safer: keep system resolver unchanged and always pass <code>@127.0.0.1</code> to tools.</li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <div class="section-title">
+      <strong>Configuration highlights</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <p>Key file: <code>labs-src/bind9/named.conf.options</code></p>
+      <div class="code-block"><code>options {
+    directory "/var/cache/bind";
+    recursion yes;
+    allow-recursion { any; };
+
+    // QNAME Minimization
+    qname-minimization yes;
+
+    // DNSSEC
+    dnssec-validation auto;
+
+    // Logging
+    querylog yes;
+
+    listen-on port 53 { any; };
+};</code></div>
+    </section>
+
+    <div class="section-title">
+      <strong>Tasks &amp; evidence</strong>
+      <span class="line"></span>
+    </div>
+
+    <section class="panel">
+      <h3>1) Baseline lookups and caching</h3>
+      <div class="code-block"><code>dig @127.0.0.1 A example.com +dnssec +multi
+dig @127.0.0.1 AAAA example.com +dnssec +multi
+dig @127.0.0.1 A www.example.com +dnssec +multi</code></div>
+      <p><strong>Evidence to collect:</strong></p>
+      <ul>
+        <li>Screenshot showing <strong>status: NOERROR</strong> and <strong>ad</strong> (Authenticated Data) flag when DNSSEC validated.</li>
+        <li><code>;; SERVER: 127.0.0.1#53</code> confirms queries hit your resolver.</li>
+        <li>A second run should be faster (cached). Note <strong>Query time</strong> deltas.</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h3>2) Validate DNSSEC on signed zones</h3>
+      <div class="code-block"><code>dig @127.0.0.1 A ietf.org +dnssec
+dig @127.0.0.1 A dnssec-failed.org +dnssec</code></div>
+      <p><strong>Expected:</strong></p>
+      <ul>
+        <li><code>ietf.org</code> resolves with <code>ad</code> flag.</li>
+        <li><code>dnssec-failed.org</code> should <strong>fail validation</strong> (SERVFAIL or no <code>ad</code>).</li>
+      </ul>
+      <p>Capture a screenshot and note the behavior differences.</p>
+    </section>
+
+    <section class="panel">
+      <h3>3) Observe QNAME minimization behavior</h3>
+      <div class="code-block"><code>dig +trace A www.example.com
+dig @127.0.0.1 +trace A www.example.com</code></div>
+      <p><strong>Observation:</strong> With minimization, upstream queries are minimized to necessary labels. Deep packet capture requires <code>tcpdump</code> running on the host interface while resolving.</p>
+    </section>
+
+    <section class="panel">
+      <h3>4) Inspect query logs</h3>
+      <div class="code-block"><code>docker compose logs -f bind9
+# or
+docker exec -it bind9 sh -c 'grep -i query /var/log/named/query.log || tail -f /var/log/named/*.log'</code></div>
+      <p><strong>Evidence:</strong> Paste a few log lines showing query types, client IP, and whether answers were served from cache or upstream.</p>
+      <p class="notice">Note: Some images log via stderr/stdout; <code>docker compose logs bind9</code> will show query activity when <code>querylog yes;</code> is set.</p>
+    </section>
+
+    <section class="panel">
+      <h3>5) Cache poisoning surface (theory → practice)</h3>
+      <ul>
+        <li>Classic poisoning relies on predicting TXID/port or racing the legitimate response.</li>
+        <li>Modern BIND uses random source ports and strong TXID randomness; <strong>DNSSEC</strong> thwarts forged data even if a race succeeds.</li>
+        <li><strong>Exercise:</strong> Run repeated lookups for a non-existent subdomain to generate NXDOMAIN cache entries and note TTLs:</li>
+      </ul>
+      <div class="code-block"><code>for i in $(seq 1 5); do dig @127.0.0.1 A no-such-$i.example.com +dnssec; done</code></div>
+      <p><strong>Evidence:</strong> Show NXDOMAIN with SOA in the authority section and the negative cache TTL.</p>
+    </section>
+
+    <section class="panel">
+      <h3>Hardening checklist (you did)</h3>
+      <ul>
+        <li>✅ QNAME minimization: <code>yes</code></li>
+        <li>✅ DNSSEC validation: <code>auto</code></li>
+      </ul>
+    </section>
+
+    <footer>
+      Need the PCAP or logs? Contact me for the evidence bundle.
+    </footer>
+  </main>
+</body>
+</html>

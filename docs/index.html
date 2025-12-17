@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cyber Labs Portfolio</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <div class="brand">
+        <span class="badge">Security Labs</span>
+        Cyber Labs Portfolio
+      </div>
+      <div class="nav-links">
+        <a href="#labs">Labs</a>
+        <a href="./about.html">About</a>
+        <a href="./contact.html">Contact</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div>
+        <h1>Hands-on security labs with real configs and evidence</h1>
+        <p>
+          DNS hardening, network forensics, and SaaS application security built with reproducible steps
+          and supporting artifacts so you can validate every claim.
+        </p>
+        <div class="action-row">
+          <a class="btn primary" href="./labs/dns-bind9.html">View DNS Security Lab</a>
+          <a class="btn" href="./about.html">How I work</a>
+        </div>
+        <div class="meta-row" style="margin-top:14px;">
+          <span class="meta-tag">SOC Analyst focus</span>
+          <span class="meta-tag">Evidence-driven</span>
+          <span class="meta-tag">Built: Oct 2025</span>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <h4>Lab coverage</h4>
+        <ul>
+          <li>DNS security: QNAME minimization + DNSSEC</li>
+          <li>Containerized lab setups with Docker Compose</li>
+          <li>Audit-first SaaS app authentication (FastAPI)</li>
+          <li>Network capture workflows for validation</li>
+        </ul>
+        <div class="notice cta">
+          Documented evidence trails: commands, screenshots, and log excerpts per lab.
+        </div>
+      </div>
+    </section>
+
+    <div id="labs" class="section-title">
+      <strong>Featured labs</strong>
+      <span class="line"></span>
+    </div>
+
+    <section class="grid">
+      <article class="card">
+        <div class="badge">Live write-up</div>
+        <h3>DNS Security (BIND9)</h3>
+        <p>Recursive resolver hardened with DNSSEC validation and QNAME minimization, plus traffic captures for proof.</p>
+        <div class="meta-row">
+          <span class="meta-tag">Docker</span>
+          <span class="meta-tag">DNSSEC</span>
+          <span class="meta-tag">Evidence</span>
+        </div>
+        <div class="action-row" style="margin-top:12px;">
+          <a class="btn" href="./labs/dns-bind9.html">Read the lab</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="badge" style="background: rgba(192,132,252,0.15); color: var(--accent-2); border-color: rgba(192,132,252,0.3);">In progress</div>
+        <h3>Network Traffic Analysis</h3>
+        <p>Deep packet inspection and threat detection workflows with Wireshark/tcpdump and curated PCAP exercises.</p>
+        <div class="meta-row">
+          <span class="meta-tag">Wireshark</span>
+          <span class="meta-tag">Threat hunting</span>
+        </div>
+        <div class="notice" style="margin-top:12px;">Write-up coming soon. Reach out for early access.</div>
+      </article>
+
+      <article class="card">
+        <div class="badge" style="background: rgba(74,222,128,0.15); color: var(--success); border-color: rgba(74,222,128,0.35);">New</div>
+        <h3>SaaS App Security (FastAPI)</h3>
+        <p>Authentication audit trails, failed-login forensics, and secure defaults for a lab-grade FastAPI SaaS stack.</p>
+        <div class="meta-row">
+          <span class="meta-tag">FastAPI</span>
+          <span class="meta-tag">PostgreSQL</span>
+          <span class="meta-tag">Audit</span>
+        </div>
+        <div class="notice" style="margin-top:12px;">Code available in <code>labs-src/saas-security</code>; visual guide in progress.</div>
+      </article>
+    </section>
+
+    <div class="section-title">
+      <strong>What to expect</strong>
+      <span class="line"></span>
+    </div>
+    <section class="grid">
+      <div class="panel">
+        <h3>Reproducible steps</h3>
+        <p>Exact commands, config snippets, and Docker Compose setups so you can mirror the lab locally.</p>
+      </div>
+      <div class="panel">
+        <h3>Evidence attached</h3>
+        <p>Screenshots, logs, and packet captures accompany each lab to prove defenses and outcomes.</p>
+      </div>
+      <div class="panel">
+        <h3>Production lens</h3>
+        <p>Brief takeaways connect lab findings to controls you can apply in a real environment.</p>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <strong>Contact</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <p>Want the full walkthrough or a specific dataset? Get in touch and I can share the artifacts used in these labs.</p>
+      <div class="action-row">
+        <a class="btn primary" href="./contact.html">Contact page</a>
+        <a class="btn" href="https://github.com/yveszamor21/cyber-labs-portfolio">View on GitHub</a>
+      </div>
+    </section>
+
+    <footer>
+      Built for SOC Analyst and Security Engineer roles. Updated October 2025.
+    </footer>
+  </main>
+</body>
+</html>
