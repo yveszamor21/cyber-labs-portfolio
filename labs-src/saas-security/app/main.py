@@ -220,8 +220,11 @@ async def login_for_access_token(
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         record_audit_event(db, user=None, request=request, action="failed_login", details=form_data.username)
-        db.flush()
-        db.commit()
+        try:
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            raise
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
