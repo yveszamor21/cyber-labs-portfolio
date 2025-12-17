@@ -45,11 +45,18 @@ class AccessControl:
         subscription_tier: str,
         document_department: str,
         document_tier: str,
+        document_classification: str,
     ) -> bool:
+        """ABAC rules combining role, department, and subscription tier."""
+
         if self.is_admin(role):
             return True
         if role == "manager" and department == document_department:
             return document_tier in self.allowed_tiers(subscription_tier)
         if role == "viewer":
-            return document_department == department and document_tier == "public"
+            return (
+                document_department == department
+                and document_classification == "public"
+                and document_tier in self.allowed_tiers(subscription_tier)
+            )
         return False

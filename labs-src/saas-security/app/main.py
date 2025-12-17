@@ -265,16 +265,30 @@ async def list_documents(
 
     record_audit_event(db, user=current_user, request=request, action="list_documents", details="view")
 
-    # Enforce ABAC: restrict results to user's department and tier unless admin.
-    query = db.query(SecureDocument)
-    if not access_control.is_admin(current_user.role):
-        query = query.filter(
-            SecureDocument.owner_department == current_user.department,
-            SecureDocument.subscription_required.in_(
-                access_control.allowed_tiers(current_user.subscription_tier)
-            ),
-        )
-    return query.all()
+    # Enforce ABAC: restrict results to user's department, tier, and classification unless admin.
+    if access_control.is_admin(current_user.role):
+        return db.query(SecureDocument).all()
+
+    candidate_docs = db.query(SecureDocument).filter(
+        SecureDocument.owner_department == current_user.department,
+        SecureDocument.subscription_required.in_(
+            access_control.allowed_tiers(current_user.subscription_tier)
+        ),
+    )
+
+    # Apply fine-grained classification filtering for viewers.
+    documents = []
+    for doc in candidate_docs:
+        if access_control.can_access_document(
+            role=current_user.role,
+            department=current_user.department,
+            subscription_tier=current_user.subscription_tier,
+            document_department=doc.owner_department,
+            document_tier=doc.subscription_required,
+            document_classification=doc.classification,
+        ):
+            documents.append(doc)
+    return documents
 
 
 @app.post("/simulate/sql-injection")
@@ -286,6 +300,7 @@ async def simulate_sql_injection(
 ):
     """Demonstrate safe parametrized queries mitigating SQL injection."""
 
+    access_control.require_role(current_user.role, allowed_roles={"admin"})
     record_audit_event(db, user=current_user, request=request, action="simulate_sql_injection", details=payload.user_input)
 
     # Untrusted input could look like: "'; DROP TABLE users; --"
