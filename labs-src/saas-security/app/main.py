@@ -264,6 +264,7 @@ async def login_for_access_token(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[Session, Depends(get_db)],
+    _: Annotated[None, Depends(rate_limiter)],
 ):
     """Issue signed JWT access tokens."""
 

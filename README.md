@@ -92,6 +92,13 @@ Detailed lab reports and documentation are available in the `/docs` directory. E
 - **Documentation:** Markdown, GitHub Pages
 - **Version Control:** Git, GitHub
 
+## 🔒 Security Highlights (SaaS Lab)
+
+- **Failed login audit persistence** using isolated transactions to ensure bad credential attempts are captured for forensics.
+- **Rate limiting on authentication endpoints** to slow brute force attempts and protect credentials.
+- **JWT replay protection** via a Redis-backed token blocklist that revokes tokens on logout or suspicion.
+- **Proxy-aware IP logging** that honors `X-Forwarded-For` to preserve accurate client attribution behind gateways.
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
