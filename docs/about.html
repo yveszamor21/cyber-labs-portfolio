@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About | Cyber Labs Portfolio</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <div class="brand">
+        <span class="badge">Security Labs</span>
+        Cyber Labs Portfolio
+      </div>
+      <div class="nav-links">
+        <a href="./index.html">Home</a>
+        <a href="./contact.html">Contact</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="section-title" style="margin-top:12px;">
+      <strong>About</strong>
+      <span class="line"></span>
+    </div>
+
+    <section class="panel">
+      <p>This portfolio highlights hands-on security labs with reproducible steps, evidence artifacts, and reflections on how findings translate to production hardening.</p>
+      <p>Each lab is designed to be cloned and run locally, with Docker Compose files, configuration snippets, and verification commands you can execute yourself. Evidence is captured through logs, packet traces, and screenshots so you can see exactly what changed when controls were applied.</p>
+    </section>
+
+    <div class="section-title">
+      <strong>Focus areas</strong>
+      <span class="line"></span>
+    </div>
+    <section class="grid">
+      <div class="card">
+        <h3>Detection-first mindset</h3>
+        <p>Instrumentation, query logging, and audit trails are prioritized to make defensive outcomes observable and reviewable.</p>
+      </div>
+      <div class="card">
+        <h3>Operational realism</h3>
+        <p>Configurations mirror what you would run in production (e.g., DNSSEC validation, least-privilege defaults, TLS-by-default for apps).</p>
+      </div>
+      <div class="card">
+        <h3>Documented evidence</h3>
+        <p>Every lab comes with commands, outputs, and screenshots to prove it worked, not just instructions that say it should.</p>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <strong>Roles targeted</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <ul class="list">
+        <li><strong>SOC Analyst</strong> — log review, packet analysis, and triage workflows.</li>
+        <li><strong>Security Engineer</strong> — service hardening, secure defaults, and observability.</li>
+        <li><strong>Network Security Analyst</strong> — DNS and traffic-layer controls validated with captures.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Built for evidence-based security practitioners. Updated October 2025.
+    </footer>
+  </main>
+</body>
+</html>
