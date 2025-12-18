@@ -13,6 +13,9 @@ class TokenPayload(BaseModel):
     sub: str = Field(..., description="Subject = user id")
     role: str = Field(..., description="Primary RBAC role")
     exp: int
+    jti: str = Field(..., description="JWT ID for replay protection")
+    iss: str = Field(..., description="Issuer for trust validation")
+    iat: int = Field(..., description="Issued-at timestamp")
 
 
 class AccessControl:

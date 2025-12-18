@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     redis_host: str = "redis"
     redis_port: int = 6379
     redis_password: str
-    jwt_secret_key: str = "change-me-in-prod"
+    jwt_secret_key: str
+    jwt_issuer: str = "secure-saas-lab"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     audit_log_retention_days: int = 30

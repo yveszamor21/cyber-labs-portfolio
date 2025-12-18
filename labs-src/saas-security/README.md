@@ -34,6 +34,8 @@ This lab demonstrates how to assemble core SaaS security controls in a Python st
    cp .env.example .env
    ```
 
+   Update `.env` with a strong `JWT_SECRET_KEY`, a Redis password, and an optional `JWT_ISSUER` to align tokens with your organization.
+
 3. **Launch the stack**
 
    ```bash
@@ -73,6 +75,7 @@ http --verify=nginx/certs/localhost.crt --form POST https://localhost:8443/auth/
 ```
 
 - Replay the JWT with a modified signature to trigger a `401` and observe the audit log capture (`failed_login`).
+- Call `POST /auth/logout` to add the token's JTI to the Redis blocklist; any replay attempt after logout is rejected during JWT validation.
 
 ### 2. RBAC and ABAC enforcement
 

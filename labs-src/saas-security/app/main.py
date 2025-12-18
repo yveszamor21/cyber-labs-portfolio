@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import uuid
 from contextlib import contextmanager
 from typing import Annotated, Optional
 
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 from .config import settings
 from .rate_limiter import RateLimiter
 from .security import AccessControl, TokenPayload
+from .token_blocklist import TokenBlocklist
 
 # ---------------------------------------------------------------------------
 # Database bootstrap
@@ -122,6 +124,11 @@ rate_limiter = RateLimiter(
     redis_port=settings.redis_port,
     redis_password=settings.redis_password,
 )
+token_blocklist = TokenBlocklist(
+    redis_host=settings.redis_host,
+    redis_port=settings.redis_port,
+    redis_password=settings.redis_password,
+)
 app = FastAPI(title=settings.project_name)
 
 
@@ -164,16 +171,22 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
 
 def create_access_token(*, data: dict, expires_delta: dt.timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = dt.datetime.utcnow() + (expires_delta or dt.timedelta(minutes=settings.jwt_access_token_expire_minutes))
-    to_encode.update({"exp": expire})
+    expire = dt.datetime.now(dt.timezone.utc) + (
+        expires_delta or dt.timedelta(minutes=settings.jwt_access_token_expire_minutes)
+    )
+    to_encode.update(
+        {
+            "exp": expire,
+            "iss": settings.jwt_issuer,
+            "iat": int(dt.datetime.now(dt.timezone.utc).timestamp()),
+            "jti": uuid.uuid4().hex,
+        }
+    )
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    db: Annotated[Session, Depends(get_db)],
-) -> User:
-    """Decode JWT token and fetch an active user."""
+async def get_token_payload(token: Annotated[str, Depends(oauth2_scheme)]) -> TokenPayload:
+    """Decode a JWT, enforce issuer, and check revocation."""
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -181,14 +194,34 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            issuer=settings.jwt_issuer,
+        )
         token_data = TokenPayload.model_validate(payload)
     except JWTError as exc:  # token misuse / tampering detection
         raise credentials_exception from exc
 
+    if await token_blocklist.is_blocked(token_data.jti):
+        raise credentials_exception
+    return token_data
+
+
+async def get_current_user(
+    token_data: Annotated[TokenPayload, Depends(get_token_payload)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User:
+    """Decode JWT token and fetch an active user."""
+
     user = db.get(User, token_data.sub)
     if user is None or not user.is_active:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 
@@ -200,7 +233,7 @@ def record_audit_event(
 ) -> AuditLog:
     """Persist security-relevant events for accountability."""
 
-    ip_address = request.client.host if request.client else "unknown"
+    ip_address = extract_client_ip(request)
     audit_entry = AuditLog(
         user_id=user.id if user else None,
         action=action,
@@ -212,6 +245,15 @@ def record_audit_event(
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=settings.audit_log_retention_days)
     db.query(AuditLog).filter(AuditLog.created_at < cutoff).delete()
     return audit_entry
+
+
+def extract_client_ip(request: Request) -> str:
+    """Prefer the left-most X-Forwarded-For value when available."""
+
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -260,9 +302,11 @@ async def logout(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
+    token_data: Annotated[TokenPayload, Depends(get_token_payload)],
 ):
     """Record logout events for accountability."""
 
+    await token_blocklist.block_until_expiry(token_data.jti, token_data.exp)
     record_audit_event(
         db,
         user=current_user,
@@ -369,11 +413,14 @@ async def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
     app.state.rate_limiter = rate_limiter
     await rate_limiter.initialize()
+    app.state.token_blocklist = token_blocklist
+    await token_blocklist.initialize()
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
     await rate_limiter.close()
+    await token_blocklist.close()
 
 
 # Utility endpoint to showcase token misuse detection.
