@@ -12,9 +12,10 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     postgres_db: str = "saas"
     postgres_user: str = "saas_app"
-    postgres_password: str = "saas_secret"
+    postgres_password: str
     redis_host: str = "redis"
     redis_port: int = 6379
+    redis_password: str
     jwt_secret_key: str = "change-me-in-prod"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30

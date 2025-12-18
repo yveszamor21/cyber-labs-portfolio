@@ -117,7 +117,11 @@ class SQLInjectionPayload(BaseModel):
 
 
 access_control = AccessControl()
-rate_limiter = RateLimiter(redis_host=settings.redis_host, redis_port=settings.redis_port)
+rate_limiter = RateLimiter(
+    redis_host=settings.redis_host,
+    redis_port=settings.redis_port,
+    redis_password=settings.redis_password,
+)
 app = FastAPI(title=settings.project_name)
 
 

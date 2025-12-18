@@ -8,8 +8,21 @@ from redis.asyncio import Redis
 class RateLimiter:
     """Simple fixed-window limiter counting requests per IP + route."""
 
-    def __init__(self, *, redis_host: str, redis_port: int, limit: int = 20, window_seconds: int = 60) -> None:
-        self._redis = Redis(host=redis_host, port=redis_port, decode_responses=True)
+    def __init__(
+        self,
+        *,
+        redis_host: str,
+        redis_port: int,
+        redis_password: str | None = None,
+        limit: int = 20,
+        window_seconds: int = 60,
+    ) -> None:
+        self._redis = Redis(
+            host=redis_host,
+            port=redis_port,
+            password=redis_password,
+            decode_responses=True,
+        )
         self.limit = limit
         self.window_seconds = window_seconds
 
