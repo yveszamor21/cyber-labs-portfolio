@@ -34,7 +34,7 @@ This lab demonstrates how to assemble core SaaS security controls in a Python st
    cp .env.example .env
    ```
 
-   Update `.env` with a strong `JWT_SECRET_KEY`, a Redis password, and an optional `JWT_ISSUER` to align tokens with your organization.
+   Update `.env` with a strong `JWT_SECRET_KEY`, a Redis password, and an optional `JWT_ISSUER` to align tokens with your organization. Set `TRUSTED_PROXIES` to the IPs or CIDR ranges of your load balancer so `X-Forwarded-For` is only honored from known gateways.
 
 3. **Launch the stack**
 
@@ -94,6 +94,8 @@ The API safely echoes the payload thanks to parametrized SQL and Pydantic valida
 
 ### 4. Rate limiting
 
+- Rapidly call `/auth/token` more than 5 times per minute from the same client IP to receive a `429` and a `Retry-After` header from the Redis-backed limiter (`rate_limit:login:{ip}`).
+- `/auth/register` is capped at 3 requests per hour per IP and `/auth/password-reset` is capped at 2 requests per hour per IP to deter account creation or recovery abuse.
 - Rapidly call `/documents` more than 20 times per minute to receive a `429` from the application.
 - Exceed ~30 requests per minute via Nginx to hit the gateway throttling before traffic reaches FastAPI.
 

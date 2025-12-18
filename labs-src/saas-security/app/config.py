@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     audit_log_retention_days: int = 30
+    trusted_proxies: list[str] = []
 
 
 settings = Settings()

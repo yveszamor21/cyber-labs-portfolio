@@ -22,6 +22,7 @@ os.environ.setdefault("REDIS_PORT", "6379")
 os.environ.setdefault("REDIS_PASSWORD", "dummy")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
 os.environ.setdefault("JWT_ISSUER", "test-issuer")
+os.environ.setdefault("TRUSTED_PROXIES", "testclient")
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT_DIR))
@@ -72,10 +73,19 @@ def test_client():
     # Override dependencies to avoid external Redis requirements
     dummy_rate_limiter = DummyRateLimiter()
     dummy_blocklist = DummyTokenBlocklist()
-    original_rate_limiter = main.rate_limiter
-    main.rate_limiter = dummy_rate_limiter
+    original_limiters = [
+        main.login_rate_limiter,
+        main.registration_rate_limiter,
+        main.password_reset_rate_limiter,
+        main.general_rate_limiter,
+    ]
+    main.login_rate_limiter = dummy_rate_limiter
+    main.registration_rate_limiter = dummy_rate_limiter
+    main.password_reset_rate_limiter = dummy_rate_limiter
+    main.general_rate_limiter = dummy_rate_limiter
     main.token_blocklist = dummy_blocklist
-    main.app.dependency_overrides[original_rate_limiter] = dummy_rate_limiter
+    for limiter in original_limiters:
+        main.app.dependency_overrides[limiter] = dummy_rate_limiter
 
     def override_get_db():
         session = TestingSessionLocal()

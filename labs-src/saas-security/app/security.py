@@ -1,10 +1,20 @@
-"""Authorization helpers and JWT payload model."""
+"""Authorization helpers, JWT payload model, and trusted IP parsing."""
 from __future__ import annotations
 
+import ipaddress
 from typing import Optional, Set
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from pydantic import BaseModel, Field
+
+from .config import settings
+
+TRUSTED_PROXIES = []
+for proxy in settings.trusted_proxies:
+    try:
+        TRUSTED_PROXIES.append(ipaddress.ip_network(proxy, strict=False))
+    except ValueError:
+        TRUSTED_PROXIES.append(proxy)
 
 
 class TokenPayload(BaseModel):
@@ -16,6 +26,52 @@ class TokenPayload(BaseModel):
     jti: str = Field(..., description="JWT ID for replay protection")
     iss: str = Field(..., description="Issuer for trust validation")
     iat: int = Field(..., description="Issued-at timestamp")
+
+
+def _is_trusted_proxy(client_host: str | None) -> bool:
+    if not client_host:
+        return False
+    try:
+        client_ip = ipaddress.ip_address(client_host)
+    except ValueError:
+        client_ip = None
+
+    for proxy in TRUSTED_PROXIES:
+        if isinstance(proxy, (ipaddress.IPv4Network, ipaddress.IPv6Network)):
+            if client_ip and client_ip in proxy:
+                return True
+        elif proxy == client_host:
+            return True
+    return False
+
+
+def _is_public_ip(candidate: str) -> bool:
+    try:
+        ip_obj = ipaddress.ip_address(candidate)
+    except ValueError:
+        return False
+    return not (
+        ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+        or ip_obj.is_multicast
+    )
+
+
+def extract_client_ip(request: Request) -> str:
+    """Safely determine caller IP honoring trusted proxy chain."""
+
+    remote_host = request.client.host if request.client else None
+    forwarded_for = request.headers.get("x-forwarded-for")
+
+    if forwarded_for and _is_trusted_proxy(remote_host):
+        for part in forwarded_for.split(","):
+            candidate = part.strip()
+            if _is_public_ip(candidate):
+                return candidate
+
+    return remote_host or "unknown"
 
 
 class AccessControl:

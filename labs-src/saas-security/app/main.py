@@ -16,8 +16,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 from .config import settings
-from .rate_limiter import RateLimiter
-from .security import AccessControl, TokenPayload
+from .rate_limiter import RateLimiter, warmup_rate_limiters
+from .security import AccessControl, TokenPayload, extract_client_ip
 from .token_blocklist import TokenBlocklist
 
 # ---------------------------------------------------------------------------
@@ -118,11 +118,58 @@ class SQLInjectionPayload(BaseModel):
     user_input: str = Field(..., max_length=200)
 
 
+class RegistrationRequest(BaseModel):
+    username: str = Field(..., max_length=50)
+    password: str = Field(..., min_length=8, max_length=128)
+    role: str = Field(default="viewer", pattern=r"^(admin|manager|viewer)$")
+    department: str = Field(default="general", max_length=50)
+    subscription_tier: str = Field(default="free", pattern=r"^(free|pro|enterprise)$")
+
+
+class PasswordResetRequest(BaseModel):
+    username: str = Field(..., max_length=50)
+
+
 access_control = AccessControl()
-rate_limiter = RateLimiter(
+login_rate_limiter = RateLimiter(
     redis_host=settings.redis_host,
     redis_port=settings.redis_port,
     redis_password=settings.redis_password,
+    limit=5,
+    window_seconds=60,
+    key_prefix="rate_limit:login",
+)
+registration_rate_limiter = RateLimiter(
+    redis_host=settings.redis_host,
+    redis_port=settings.redis_port,
+    redis_password=settings.redis_password,
+    limit=3,
+    window_seconds=3600,
+    key_prefix="rate_limit:register",
+)
+password_reset_rate_limiter = RateLimiter(
+    redis_host=settings.redis_host,
+    redis_port=settings.redis_port,
+    redis_password=settings.redis_password,
+    limit=2,
+    window_seconds=3600,
+    key_prefix="rate_limit:password_reset",
+)
+general_rate_limiter = RateLimiter(
+    redis_host=settings.redis_host,
+    redis_port=settings.redis_port,
+    redis_password=settings.redis_password,
+    limit=20,
+    window_seconds=60,
+    key_prefix="rate_limit:general",
+)
+rate_limiters = warmup_rate_limiters(
+    [
+        login_rate_limiter,
+        registration_rate_limiter,
+        password_reset_rate_limiter,
+        general_rate_limiter,
+    ]
 )
 token_blocklist = TokenBlocklist(
     redis_host=settings.redis_host,
@@ -247,15 +294,6 @@ def record_audit_event(
     return audit_entry
 
 
-def extract_client_ip(request: Request) -> str:
-    """Prefer the left-most X-Forwarded-For value when available."""
-
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
 # ---------------------------------------------------------------------------
 # API routes
 # ---------------------------------------------------------------------------
@@ -264,7 +302,7 @@ async def login_for_access_token(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[Session, Depends(get_db)],
-    _: Annotated[None, Depends(rate_limiter)],
+    _: Annotated[None, Depends(login_rate_limiter)],
 ):
     """Issue signed JWT access tokens."""
 
@@ -299,6 +337,58 @@ async def login_for_access_token(
     return TokenResponse(access_token=access_token)
 
 
+@app.post("/auth/register")
+async def register(
+    request: Request,
+    payload: RegistrationRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[None, Depends(registration_rate_limiter)],
+):
+    """Create a new user account with rate limiting to deter abuse."""
+
+    existing = db.query(User).filter(User.username == payload.username).one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+
+    user = User(
+        username=payload.username,
+        hashed_password=get_password_hash(payload.password),
+        role=payload.role,
+        department=payload.department,
+        subscription_tier=payload.subscription_tier,
+    )
+    db.add(user)
+    db.flush()
+    record_audit_event(
+        db,
+        user=user,
+        request=request,
+        action="register",
+        details=f"username={user.username} created",
+    )
+    return {"id": user.id, "username": user.username, "role": user.role}
+
+
+@app.post("/auth/password-reset")
+async def request_password_reset(
+    request: Request,
+    payload: PasswordResetRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _: Annotated[None, Depends(password_reset_rate_limiter)],
+):
+    """Throttle password reset requests and always audit the attempt."""
+
+    user = db.query(User).filter(User.username == payload.username).one_or_none()
+    record_audit_event(
+        db,
+        user=user,
+        request=request,
+        action="password_reset_request",
+        details=f"username={payload.username} reset requested",
+    )
+    return {"detail": "If the account exists, reset instructions have been sent"}
+
+
 @app.post("/auth/logout")
 async def logout(
     request: Request,
@@ -325,7 +415,7 @@ async def create_document(
     payload: DocumentIn,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-    _: Annotated[None, Depends(rate_limiter)],
+    _: Annotated[None, Depends(general_rate_limiter)],
 ):
     """Create a document with RBAC enforcement (admin + manager roles)."""
 
@@ -343,7 +433,7 @@ async def list_documents(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
-    _: Annotated[None, Depends(rate_limiter)],
+    _: Annotated[None, Depends(general_rate_limiter)],
 ):
     """List documents applying ABAC constraints."""
 
@@ -413,15 +503,17 @@ async def on_startup() -> None:
     """Create tables + warm up rate limiter."""
 
     Base.metadata.create_all(bind=engine)
-    app.state.rate_limiter = rate_limiter
-    await rate_limiter.initialize()
+    app.state.rate_limiters = rate_limiters
+    for limiter in rate_limiters:
+        await limiter.initialize()
     app.state.token_blocklist = token_blocklist
     await token_blocklist.initialize()
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
-    await rate_limiter.close()
+    for limiter in rate_limiters:
+        await limiter.close()
     await token_blocklist.close()
 
 
