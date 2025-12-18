@@ -195,7 +195,9 @@ async def get_current_user(
 # ---------------------------------------------------------------------------
 # Audit logging utilities
 # ---------------------------------------------------------------------------
-def record_audit_event(db: Session, *, user: Optional[User], request: Request, action: str, details: str) -> None:
+def record_audit_event(
+    db: Session, *, user: Optional[User], request: Request, action: str, details: str
+) -> AuditLog:
     """Persist security-relevant events for accountability."""
 
     ip_address = request.client.host if request.client else "unknown"
@@ -206,8 +208,10 @@ def record_audit_event(db: Session, *, user: Optional[User], request: Request, a
         details=details,
     )
     db.add(audit_entry)
+    db.flush()  # ensure defaults (e.g., created_at) are materialized before any early returns
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=settings.audit_log_retention_days)
     db.query(AuditLog).filter(AuditLog.created_at < cutoff).delete()
+    return audit_entry
 
 
 # ---------------------------------------------------------------------------
