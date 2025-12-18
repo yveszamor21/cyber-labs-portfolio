@@ -1,7 +1,7 @@
 # DNS Security Lab — BIND9 (Docker)
 
-**Date tested:** October 12, 2025  
-**Target roles:** SOC Analyst / Jr. Security Engineer  
+**Date tested:** October 12, 2025
+**Target roles:** SOC Analyst / Jr. Security Engineer
 **Tools:** BIND 9.18 (docker), `dig`, `drill`, `tcpdump`, Wireshark
 
 ## Objectives
@@ -20,18 +20,26 @@
 
 ## Reproducible Setup
 
-> Requires: Docker Desktop or Docker Engine.
+> Requires: Docker Desktop/Engine, `docker compose`, `dig`/`drill`. For the attack simulation, install `scapy` (`pip install scapy`).
 
+1) Clone and start the resolver:
 ```bash
 git clone https://github.com/yveszamor21/cyber-labs-portfolio.git
 cd cyber-labs-portfolio/labs-src/bind9
 docker compose up -d
+docker compose ps
 ```
 
-- The resolver listens on `127.0.0.1:53` (TCP/UDP) and `0.0.0.0:53` (mapped from the container).  
+2) Basic health checks (from the repo root):
+```bash
+docker compose exec bind9 named -V | head -n 1
+dig @127.0.0.1 chaos txt id.server +short
+```
+- The resolver listens on `127.0.0.1:53` (TCP/UDP) and `0.0.0.0:53` (mapped from the container).
 - To make your host use it temporarily:
   - Linux/macOS: `sudo bash -c 'echo nameserver 127.0.0.1 > /etc/resolv.conf'` (remember to restore later), or use `dig @127.0.0.1 ...` per-command.
   - Safer: keep system resolver unchanged and always pass `@127.0.0.1` to tools.
+  - After testing: restore `/etc/resolv.conf` or reboot to revert system DNS.
 
 ## Configuration Highlights
 
@@ -92,7 +100,7 @@ Use `+trace` with a public resolver comparison (do not change your system DNS pe
 dig +trace A www.example.com
 dig @127.0.0.1 +trace A www.example.com
 ```
-**Observation:** With minimization, upstream queries are minimized to necessary labels.  
+**Observation:** With minimization, upstream queries are minimized to necessary labels.
 (Deep packet capture requires `tcpdump` running on the host interface while resolving.)
 
 ### 4) Inspect query logs
@@ -115,6 +123,27 @@ for i in $(seq 1 5); do dig @127.0.0.1 A no-such-$i.example.com +dnssec; done
 ```
 **Evidence:** Show NXDOMAIN with SOA in the authority section and the negative cache TTL.
 
+#### (Optional) Kaminsky-style race attempt
+Capture the source port/TXID entropy and observe DNSSEC protection while attempting a spoof:
+```bash
+# In terminal 1: watch traffic
+sudo tcpdump -n -vvv -i any udp port 53
+
+# In terminal 2: trigger a lookup and send a forged reply quickly
+dig @127.0.0.1 A poison-test.example.com +dnssec &
+python3 - <<'PY'
+from scapy.all import IP, UDP, DNS, DNSQR, DNSRR, send
+
+target = "127.0.0.1"
+qname = b"poison-test.example.com."
+for txid in range(100, 130):  # brute-force a few TXIDs to illustrate difficulty
+    pkt = IP(dst=target)/UDP(dport=53)/DNS(id=txid, qr=1, aa=1, qd=DNSQR(qname=qname), an=DNSRR(rrname=qname, rdata="6.6.6.6"))
+    send(pkt, verbose=False)
+print("Spoof attempts sent; DNSSEC should still reject forged data.")
+PY
+```
+**What to note:** tcpdump shows randomized source ports and the real response carrying the `ad` flag. The forged answers are ignored because signatures do not validate.
+
 ## Hardening Checklist (you did)
 - [x] QNAME minimization: `yes`
 - [x] DNSSEC validation: `auto`
@@ -133,6 +162,12 @@ for i in $(seq 1 5); do dig @127.0.0.1 A no-such-$i.example.com +dnssec; done
 ```bash
 docker compose down
 ```
+
+## Analysis Checklist
+- ✅ Screenshots of baseline lookups with `ad` flag and cached/uncached query times.
+- ✅ Logs or tcpdump output demonstrating randomized source ports and failed spoof attempts.
+- ✅ NXDOMAIN evidence (negative TTL, SOA) from non-existent subdomains.
+- ✅ Short note on why DNSSEC blocked the Kaminsky-style spoof.
 
 ## Reflection
 - **Finding:** DNSSEC provided authenticated data on signed zones and blocked intentionally-bad domains.

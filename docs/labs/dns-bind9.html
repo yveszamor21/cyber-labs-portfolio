@@ -64,16 +64,22 @@
       <span class="line"></span>
     </div>
     <section class="panel">
-      <p>Requires: Docker Desktop or Docker Engine.</p>
+      <p>Requires: Docker Desktop/Engine, <code>docker compose</code>, <code>dig</code>/<code>drill</code>. For the attack simulation, install <code>scapy</code> (<code>pip install scapy</code>).</p>
+      <h4>1) Clone and start the resolver</h4>
       <div class="code-block"><code>git clone https://github.com/yveszamor21/cyber-labs-portfolio.git
 cd cyber-labs-portfolio/labs-src/bind9
-docker compose up -d</code></div>
+docker compose up -d
+docker compose ps</code></div>
+      <h4>2) Basic health checks (from the repo root)</h4>
+      <div class="code-block"><code>docker compose exec bind9 named -V | head -n 1
+dig @127.0.0.1 chaos txt id.server +short</code></div>
       <ul>
         <li>The resolver listens on <code>127.0.0.1:53</code> (TCP/UDP) and <code>0.0.0.0:53</code> (mapped from the container).</li>
         <li>To make your host use it temporarily:
           <ul>
             <li>Linux/macOS: <code>sudo bash -c 'echo nameserver 127.0.0.1 &gt; /etc/resolv.conf'</code> (remember to restore later), or use <code>dig @127.0.0.1 ...</code> per-command.</li>
             <li>Safer: keep system resolver unchanged and always pass <code>@127.0.0.1</code> to tools.</li>
+            <li>After testing: restore <code>/etc/resolv.conf</code> or reboot to revert system DNS.</li>
           </ul>
         </li>
       </ul>
@@ -158,13 +164,84 @@ docker exec -it bind9 sh -c 'grep -i query /var/log/named/query.log || tail -f /
       </ul>
       <div class="code-block"><code>for i in $(seq 1 5); do dig @127.0.0.1 A no-such-$i.example.com +dnssec; done</code></div>
       <p><strong>Evidence:</strong> Show NXDOMAIN with SOA in the authority section and the negative cache TTL.</p>
+      <h4>(Optional) Kaminsky-style race attempt</h4>
+      <p>Capture the source port/TXID entropy and observe DNSSEC protection while attempting a spoof:</p>
+      <div class="code-block"><code># In terminal 1: watch traffic
+sudo tcpdump -n -vvv -i any udp port 53
+
+# In terminal 2: trigger a lookup and send a forged reply quickly
+dig @127.0.0.1 A poison-test.example.com +dnssec &
+python3 - &lt;&lt;'PY'
+from scapy.all import IP, UDP, DNS, DNSQR, DNSRR, send
+
+target = "127.0.0.1"
+qname = b"poison-test.example.com."
+for txid in range(100, 130):  # brute-force a few TXIDs to illustrate difficulty
+    pkt = IP(dst=target)/UDP(dport=53)/DNS(id=txid, qr=1, aa=1, qd=DNSQR(qname=qname), an=DNSRR(rrname=qname, rdata="6.6.6.6"))
+    send(pkt, verbose=False)
+print("Spoof attempts sent; DNSSEC should still reject forged data.")
+PY</code></div>
+      <p><strong>What to note:</strong> tcpdump shows randomized source ports and the real response carrying the <code>ad</code> flag. The forged answers are ignored because signatures do not validate.</p>
     </section>
 
+    <div class="section-title">
+      <strong>Hardening checklist (you did)</strong>
+      <span class="line"></span>
+    </div>
     <section class="panel">
-      <h3>Hardening checklist (you did)</h3>
       <ul>
         <li>✅ QNAME minimization: <code>yes</code></li>
         <li>✅ DNSSEC validation: <code>auto</code></li>
+        <li>✅ Query logging: on (during lab)</li>
+        <li>✅ Non-recursive on authoritative servers (N/A in this lab)</li>
+        <li>✅ Limit recursion to trusted networks (tighten in production)</li>
+      </ul>
+    </section>
+
+    <div class="section-title">
+      <strong>What I’d do in production</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <ul>
+        <li>Limit recursion to corp subnets only.</li>
+        <li>Forward to internal <strong>validating</strong> resolver pair with health checks.</li>
+        <li>Centralize logs to SIEM (Suricata/Splunk) with dashboards for NXDOMAIN spikes and query volume anomalies.</li>
+        <li>Enable rate limiting (RRL) to reduce abuse amplification.</li>
+        <li>Document resolver version and patch cadence (watch CVEs).</li>
+      </ul>
+    </section>
+
+    <div class="section-title">
+      <strong>Clean up</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <div class="code-block"><code>docker compose down</code></div>
+    </section>
+
+    <div class="section-title">
+      <strong>Analysis checklist</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <ul>
+        <li>✅ Screenshots of baseline lookups with <code>ad</code> flag and cached/uncached query times.</li>
+        <li>✅ Logs or tcpdump output demonstrating randomized source ports and failed spoof attempts.</li>
+        <li>✅ NXDOMAIN evidence (negative TTL, SOA) from non-existent subdomains.</li>
+        <li>✅ Short note on why DNSSEC blocked the Kaminsky-style spoof.</li>
+      </ul>
+    </section>
+
+    <div class="section-title">
+      <strong>Reflection</strong>
+      <span class="line"></span>
+    </div>
+    <section class="panel">
+      <ul>
+        <li><strong>Finding:</strong> DNSSEC provided authenticated data on signed zones and blocked intentionally-bad domains.</li>
+        <li><strong>Impact:</strong> Reduces phishing/poisoning blast radius; improves integrity for downstream systems (proxy, EDR updaters).</li>
+        <li><strong>Next:</strong> Ship Suricata + Splunk lab to alert on suspicious DNS patterns (e.g., DGA, high NXDOMAIN rates).</li>
       </ul>
     </section>
 
