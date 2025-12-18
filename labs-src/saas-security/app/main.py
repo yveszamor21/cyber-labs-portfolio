@@ -69,7 +69,7 @@ class AuditLog(Base):
     action = Column(String(150), nullable=False)
     ip_address = Column(String(45), nullable=False)
     details = Column(String(500), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=dt.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc), nullable=False)
 
     user = relationship("User", back_populates="audit_logs")
 
@@ -202,7 +202,7 @@ def record_audit_event(db: Session, *, user: Optional[User], request: Request, a
         details=details,
     )
     db.add(audit_entry)
-    cutoff = dt.datetime.utcnow() - dt.timedelta(days=settings.audit_log_retention_days)
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=settings.audit_log_retention_days)
     db.query(AuditLog).filter(AuditLog.created_at < cutoff).delete()
 
 
@@ -219,7 +219,13 @@ async def login_for_access_token(
 
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
-        record_audit_event(db, user=None, request=request, action="failed_login", details=form_data.username)
+        record_audit_event(
+            db,
+            user=None,
+            request=request,
+            action="failed_login",
+            details=f"username={form_data.username} bad_credentials",
+        )
         try:
             db.commit()
         except SQLAlchemyError as exc:
@@ -231,8 +237,32 @@ async def login_for_access_token(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
-    record_audit_event(db, user=user, request=request, action="login", details="issued token")
+    record_audit_event(
+        db,
+        user=user,
+        request=request,
+        action="login",
+        details=f"username={user.username} issued token",
+    )
     return TokenResponse(access_token=access_token)
+
+
+@app.post("/auth/logout")
+async def logout(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Record logout events for accountability."""
+
+    record_audit_event(
+        db,
+        user=current_user,
+        request=request,
+        action="logout",
+        details=f"username={current_user.username} logout",
+    )
+    return {"detail": "Logged out"}
 
 
 @app.post("/documents", response_model=DocumentOut)
