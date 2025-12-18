@@ -269,22 +269,23 @@ async def login_for_access_token(
 
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
-        record_audit_event(
-            db,
-            user=None,
-            request=request,
-            action="failed_login",
-            details=f"username={form_data.username} bad_credentials",
+        # Use an isolated transaction to ensure the failed-login audit persists even
+        # though the parent request will return a 401 and bypass the dependency
+        # commit in `session_scope`.
+        with session_scope() as audit_session:
+            record_audit_event(
+                audit_session,
+                user=None,
+                request=request,
+                action="failed_login",
+                details=f"username={form_data.username} bad_credentials",
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-        try:
-            db.commit()
-        except SQLAlchemyError as exc:
-            db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Unable to record failed login audit",
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
     record_audit_event(
